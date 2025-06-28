@@ -1,13 +1,23 @@
-import httpStatus from "http-status"
-import AppError from "../../errors/AppError"
-import QueryBuilder from "../../builder/QueryBuilder"
-import type { TBlogPost } from "./blog.interface"
-import { BlogPost } from "./blog.model"
+import httpStatus from "http-status";
+import QueryBuilder from "../../builder/QueryBuilder";
+import AppError from "../../errors/AppError";
+import type { TBlogPost } from "./blog.interface";
+import { BlogPost } from "./blog.model";
 
-const BlogSearchableFields = ["title", "excerpt", "content"]
+const BlogSearchableFields = ["title", "excerpt", "content"];
 
 const createBlogPostIntoDB = async (blogData: TBlogPost, userData: any) => {
-  const { title, content, excerpt, ...otherData } = blogData
+  const {
+    title,
+    content,
+    excerpt,
+    slug: _slug,
+    authorId: _authorId,
+    authorName: _authorName,
+    views: _views,
+    likes: _likes,
+    ...otherData
+  } = blogData;
 
   // Generate slug from title
   const slug = title
@@ -15,12 +25,15 @@ const createBlogPostIntoDB = async (blogData: TBlogPost, userData: any) => {
     .replace(/[^a-z0-9 -]/g, "")
     .replace(/\s+/g, "-")
     .replace(/-+/g, "-")
-    .trim("-")
+    .trim();
 
   // Check if slug already exists
-  const existingPost = await BlogPost.findOne({ slug })
+  const existingPost = await BlogPost.findOne({ slug });
   if (existingPost) {
-    throw new AppError(httpStatus.BAD_REQUEST, "A post with this title already exists")
+    throw new AppError(
+      httpStatus.BAD_REQUEST,
+      "A post with this title already exists"
+    );
   }
 
   const post = await BlogPost.create({
@@ -33,47 +46,56 @@ const createBlogPostIntoDB = async (blogData: TBlogPost, userData: any) => {
     views: 0,
     likes: 0,
     ...otherData,
-  })
+  });
 
-  const populatedPost = await BlogPost.findById(post._id).populate("authorId", "name email avatar")
+  const populatedPost = await BlogPost.findById(post._id).populate(
+    "authorId",
+    "name email avatar"
+  );
 
-  return populatedPost
-}
+  return populatedPost;
+};
 
 const getAllBlogPostsFromDB = async (query: Record<string, unknown>) => {
-  const blogQuery = new QueryBuilder(BlogPost.find().populate("authorId", "name email avatar"), query)
+  const blogQuery = new QueryBuilder(
+    BlogPost.find().populate("authorId", "name email avatar"),
+    query
+  )
     .search(BlogSearchableFields)
     .filter()
     .sort()
     .paginate()
-    .fields()
+    .fields();
 
-  const result = await blogQuery.modelQuery
-  const meta = await blogQuery.countTotal()
+  const result = await blogQuery.modelQuery;
+  const meta = await blogQuery.countTotal();
 
   // Get categories and tags for filtering
   const categories = await BlogPost.distinct("category", {
     status: "published",
-  })
-  const tags = await BlogPost.distinct("tags", { status: "published" })
+  });
+  const tags = await BlogPost.distinct("tags", { status: "published" });
 
   return {
     meta,
     result,
     categories,
     tags,
-  }
-}
+  };
+};
 
 const getSingleBlogPostFromDB = async (slug: string) => {
-  const post = await BlogPost.findOne({ slug }).populate("authorId", "name email avatar")
+  const post = await BlogPost.findOne({ slug }).populate(
+    "authorId",
+    "name email avatar"
+  );
 
   if (!post) {
-    throw new AppError(httpStatus.NOT_FOUND, "Blog post not found")
+    throw new AppError(httpStatus.NOT_FOUND, "Blog post not found");
   }
 
   // Increment view count
-  await BlogPost.findByIdAndUpdate(post._id, { $inc: { views: 1 } })
+  await BlogPost.findByIdAndUpdate(post._id, { $inc: { views: 1 } });
 
   // Get related posts
   const relatedPosts = await BlogPost.find({
@@ -83,7 +105,7 @@ const getSingleBlogPostFromDB = async (slug: string) => {
   })
     .limit(3)
     .select("title slug excerpt featuredImage createdAt")
-    .populate("authorId", "name")
+    .populate("authorId", "name");
 
   return {
     post: {
@@ -91,24 +113,28 @@ const getSingleBlogPostFromDB = async (slug: string) => {
       views: post.views + 1,
     },
     relatedPosts,
-  }
-}
+  };
+};
 
-const updateBlogPostIntoDB = async (slug: string, payload: Partial<TBlogPost>, userData: any) => {
-  const post = await BlogPost.findOne({ slug })
+const updateBlogPostIntoDB = async (
+  slug: string,
+  payload: Partial<TBlogPost>,
+  userData: any
+) => {
+  const post = await BlogPost.findOne({ slug });
   if (!post) {
-    throw new AppError(httpStatus.NOT_FOUND, "Blog post not found")
+    throw new AppError(httpStatus.NOT_FOUND, "Blog post not found");
   }
 
   // Check permissions
-  const isOwner = post.authorId.toString() === userData.userId
-  const isAdmin = userData.role === "admin"
+  const isOwner = post.authorId.toString() === userData.userId;
+  const isAdmin = userData.role === "admin";
 
   if (!isOwner && !isAdmin) {
-    throw new AppError(httpStatus.FORBIDDEN, "Unauthorized")
+    throw new AppError(httpStatus.FORBIDDEN, "Unauthorized");
   }
 
-  const updateData: any = { ...payload }
+  const updateData: any = { ...payload };
 
   if (payload.title) {
     // Generate new slug if title changed
@@ -117,35 +143,35 @@ const updateBlogPostIntoDB = async (slug: string, payload: Partial<TBlogPost>, u
       .replace(/[^a-z0-9 -]/g, "")
       .replace(/\s+/g, "-")
       .replace(/-+/g, "-")
-      .trim("-")
+      .trim();
   }
 
   const updatedPost = await BlogPost.findByIdAndUpdate(post._id, updateData, {
     new: true,
     runValidators: true,
-  }).populate("authorId", "name email avatar")
+  }).populate("authorId", "name email avatar");
 
-  return updatedPost
-}
+  return updatedPost;
+};
 
 const deleteBlogPostFromDB = async (slug: string, userData: any) => {
-  const post = await BlogPost.findOne({ slug })
+  const post = await BlogPost.findOne({ slug });
   if (!post) {
-    throw new AppError(httpStatus.NOT_FOUND, "Blog post not found")
+    throw new AppError(httpStatus.NOT_FOUND, "Blog post not found");
   }
 
   // Check permissions
-  const isOwner = post.authorId.toString() === userData.userId
-  const isAdmin = userData.role === "admin"
+  const isOwner = post.authorId.toString() === userData.userId;
+  const isAdmin = userData.role === "admin";
 
   if (!isOwner && !isAdmin) {
-    throw new AppError(httpStatus.FORBIDDEN, "Unauthorized")
+    throw new AppError(httpStatus.FORBIDDEN, "Unauthorized");
   }
 
-  await BlogPost.findByIdAndDelete(post._id)
+  await BlogPost.findByIdAndDelete(post._id);
 
-  return post
-}
+  return post;
+};
 
 export const BlogServices = {
   createBlogPostIntoDB,
@@ -153,4 +179,4 @@ export const BlogServices = {
   getSingleBlogPostFromDB,
   updateBlogPostIntoDB,
   deleteBlogPostFromDB,
-}
+};
