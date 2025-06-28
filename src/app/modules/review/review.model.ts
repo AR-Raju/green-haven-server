@@ -1,5 +1,5 @@
-import { Schema, model } from "mongoose"
-import type { TReview } from "./review.interface"
+import { Schema, model } from "mongoose";
+import type { TReview } from "./review.interface";
 
 const reviewSchema = new Schema<TReview>(
   {
@@ -57,12 +57,12 @@ const reviewSchema = new Schema<TReview>(
   },
   {
     timestamps: true,
-  },
-)
+  }
+);
 
-reviewSchema.index({ productId: 1 })
-reviewSchema.index({ userId: 1 })
-reviewSchema.index({ status: 1 })
-reviewSchema.index({ rating: 1 })
+reviewSchema.index({ productId: 1 });
+reviewSchema.index({ userId: 1 });
+reviewSchema.index({ status: 1 });
+reviewSchema.index({ rating: 1 });
 
-export const Review = model<TReview>("Review", reviewSchema)
+export const Review = model<TReview>("Review", reviewSchema);

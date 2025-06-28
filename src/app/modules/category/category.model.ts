@@ -1,5 +1,5 @@
-import { Schema, model } from "mongoose"
-import type { TCategory } from "./category.interface"
+import { Schema, model } from "mongoose";
+import type { TCategory } from "./category.interface";
 
 const categorySchema = new Schema<TCategory>(
   {
@@ -21,10 +21,7 @@ const categorySchema = new Schema<TCategory>(
   },
   {
     timestamps: true,
-  },
-)
+  }
+);
 
-// Indexes
-categorySchema.index({ name: 1 })
-
-export const Category = model<TCategory>("Category", categorySchema)
+export const Category = model<TCategory>("Category", categorySchema);

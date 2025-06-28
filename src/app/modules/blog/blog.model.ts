@@ -1,5 +1,5 @@
-import { Schema, model } from "mongoose"
-import type { TBlogPost } from "./blog.interface"
+import { Schema, model } from "mongoose";
+import type { TBlogPost } from "./blog.interface";
 
 const blogPostSchema = new Schema<TBlogPost>(
   {
@@ -79,29 +79,28 @@ const blogPostSchema = new Schema<TBlogPost>(
   },
   {
     timestamps: true,
-  },
-)
+  }
+);
 
-blogPostSchema.index({ slug: 1 })
-blogPostSchema.index({ status: 1 })
-blogPostSchema.index({ category: 1 })
-blogPostSchema.index({ tags: 1 })
-blogPostSchema.index({ featured: 1 })
-blogPostSchema.index({ publishedAt: -1 })
+blogPostSchema.index({ status: 1 });
+blogPostSchema.index({ category: 1 });
+blogPostSchema.index({ tags: 1 });
+blogPostSchema.index({ featured: 1 });
+blogPostSchema.index({ publishedAt: -1 });
 
 // Calculate reading time before saving
 blogPostSchema.pre("save", function (next) {
   if (this.content) {
-    const wordsPerMinute = 200
-    const wordCount = this.content.split(/\s+/).length
-    this.readingTime = Math.ceil(wordCount / wordsPerMinute)
+    const wordsPerMinute = 200;
+    const wordCount = this.content.split(/\s+/).length;
+    this.readingTime = Math.ceil(wordCount / wordsPerMinute);
   }
 
   if (this.status === "published" && !this.publishedAt) {
-    this.publishedAt = new Date()
+    this.publishedAt = new Date();
   }
 
-  next()
-})
+  next();
+});
 
-export const BlogPost = model<TBlogPost>("BlogPost", blogPostSchema)
+export const BlogPost = model<TBlogPost>("BlogPost", blogPostSchema);

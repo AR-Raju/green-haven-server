@@ -1,5 +1,5 @@
-import { Schema, model } from "mongoose"
-import type { TWishlist, TWishlistItem } from "./wishlist.interface"
+import { Schema, model } from "mongoose";
+import type { TWishlist, TWishlistItem } from "./wishlist.interface";
 
 const wishlistItemSchema = new Schema<TWishlistItem>({
   productId: {
@@ -11,7 +11,7 @@ const wishlistItemSchema = new Schema<TWishlistItem>({
     type: Date,
     default: Date.now,
   },
-})
+});
 
 const wishlistSchema = new Schema<TWishlist>(
   {
@@ -25,10 +25,9 @@ const wishlistSchema = new Schema<TWishlist>(
   },
   {
     timestamps: true,
-  },
-)
+  }
+);
 
-wishlistSchema.index({ userId: 1 })
-wishlistSchema.index({ "items.productId": 1 })
+wishlistSchema.index({ "items.productId": 1 });
 
-export const Wishlist = model<TWishlist>("Wishlist", wishlistSchema)
+export const Wishlist = model<TWishlist>("Wishlist", wishlistSchema);
