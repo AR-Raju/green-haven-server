@@ -1,4 +1,5 @@
 import httpStatus from "http-status";
+import mongoose from "mongoose";
 import AppError from "../../errors/AppError";
 import { Wishlist } from "./wishlist.model";
 
@@ -31,7 +32,7 @@ const addToWishlistIntoDB = async (userId: string, productId: string) => {
 
     // Convert productId string to Types.ObjectId
     wishlist.items.push({
-      productId: new (require("mongoose").Types.ObjectId)(productId),
+      productId: new mongoose.Types.ObjectId(productId),
       addedAt: new Date(),
     });
     await wishlist.save();
