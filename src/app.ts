@@ -15,32 +15,83 @@ import router from "./app/routes";
 
 const app: Application = express();
 
-// Database connection for serverless
+// Database connection for serverless with better error handling
 let isConnected = false;
+let connectionPromise: Promise<void> | null = null;
 
-const connectDB = async () => {
-  if (isConnected) {
+const connectDB = async (): Promise<void> => {
+  if (isConnected && mongoose.connection.readyState === 1) {
     return;
   }
 
-  try {
-    if (!config.database_url) {
-      throw new Error("DATABASE_URL is not defined");
-    }
-
-    await mongoose.connect(config.database_url);
-    isConnected = true;
-    console.log("Database connected successfully");
-  } catch (error) {
-    console.error("Database connection error:", error);
-    throw error;
+  // If there's already a connection attempt in progress, wait for it
+  if (connectionPromise) {
+    return connectionPromise;
   }
+
+  connectionPromise = (async () => {
+    try {
+      if (!config.database_url) {
+        throw new Error("DATABASE_URL is not defined");
+      }
+
+      // Close existing connection if it's in a bad state
+      if (
+        mongoose.connection.readyState === 2 ||
+        mongoose.connection.readyState === 3
+      ) {
+        await mongoose.disconnect();
+      }
+
+      // Configure mongoose with better settings
+      mongoose.set("strictQuery", false);
+
+      await mongoose.connect(config.database_url, {
+        maxPoolSize: 10, // Maintain up to 10 socket connections
+        serverSelectionTimeoutMS: 5000, // Keep trying to send operations for 5 seconds
+        socketTimeoutMS: 45000, // Close sockets after 45 seconds of inactivity
+        bufferCommands: false, // Disable mongoose buffering
+      });
+
+      isConnected = true;
+      console.log("Database connected successfully");
+    } catch (error) {
+      isConnected = false;
+      console.error("Database connection error:", error);
+      throw error;
+    } finally {
+      connectionPromise = null;
+    }
+  })();
+
+  return connectionPromise;
 };
 
-// Middleware to ensure database connection
+// Handle connection events
+mongoose.connection.on("connected", () => {
+  console.log("Mongoose connected to MongoDB");
+  isConnected = true;
+});
+
+mongoose.connection.on("error", (err) => {
+  console.error("Mongoose connection error:", err);
+  isConnected = false;
+});
+
+mongoose.connection.on("disconnected", () => {
+  console.log("Mongoose disconnected");
+  isConnected = false;
+});
+
+// Middleware to ensure database connection with timeout
 app.use(async (req: Request, res: Response, next: NextFunction) => {
   try {
-    await connectDB();
+    // Set a timeout for the connection attempt
+    const connectionTimeout = new Promise((_, reject) => {
+      setTimeout(() => reject(new Error("Database connection timeout")), 8000);
+    });
+
+    await Promise.race([connectDB(), connectionTimeout]);
     next();
   } catch (error) {
     console.error("Database connection failed:", error);
@@ -70,7 +121,7 @@ const corsOptions = {
 
     // List of allowed origins
     const allowedOrigins = [
-      "https://green-haven-nursary.vercel.app",
+      "https://sports-facility-client-sand.vercel.app",
       process.env.CLIENT_URL,
       "http://localhost:3000",
       "http://localhost:3001",
@@ -156,7 +207,7 @@ app.use(express.urlencoded({ extended: true, limit: "10mb" }));
 app.get("/", (req, res) => {
   res.status(200).json({
     success: true,
-    message: "Sports Facility Booking Platform API is running!",
+    message: "Green Haven Nursery Platform API is running!",
     timestamp: new Date().toISOString(),
     environment: process.env.NODE_ENV || "development",
   });
@@ -166,7 +217,7 @@ app.get("/", (req, res) => {
 app.get("/health", (req, res) => {
   res.status(200).json({
     success: true,
-    message: "Sports Facility Booking Platform API is running!",
+    message: "Green Haven Nursery Platform API is running!",
     timestamp: new Date().toISOString(),
     database: isConnected ? "connected" : "disconnected",
   });
